@@ -1,11 +1,23 @@
 package com.andemar.cleanpdf.util;
 
 import com.andemar.cleanpdf.exception.CleanPdfException;
+import com.andemar.cleanpdf.model.ImagePosition;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.RenderedImage;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDResources;
 import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
+import org.apache.pdfbox.pdmodel.graphics.PDXObject;
+import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.PDFTextStripperByArea;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,11 +31,12 @@ public class PdfReadUtils {
   private static final String NEW_LINE = "\n";
   private static final String NEW_PAGE = "\f";
   private static final String SPACE = " ";
+  private static final Integer CHARACTER_PHRASE_POSITION = 50;
 
 
   public StringBuilder multipartFileToStringBuilder(MultipartFile file) {
     PDDocument document = loadPdf(file);
-
+    extractImagePosition(document);
     StringBuilder content = new StringBuilder();
     try {
       PDFTextStripperByArea textStripper = new PDFTextStripperByArea();
@@ -71,8 +84,6 @@ public class PdfReadUtils {
     int iterations = 50;
     text.trim();
 
-
-
     for (int i = 0; i < iterations; i++) {
       text = text.replaceAll("\r\n \r\n ",JUMP_LINE);
       text = text.replaceAll("\r\n\r\n",JUMP_LINE);
@@ -85,5 +96,90 @@ public class PdfReadUtils {
     text = text.replaceAll("\r\n \r\n", "\n\n");
     text = text.replaceAll("(\\r\\n)([áéíóúÁÉÍÓÚa-zA-Z ])", "$2");
     return text;
+  }
+
+
+  public List<ImagePosition> extractImagePosition(PDDocument document) {
+
+    AtomicInteger pageHeight = new AtomicInteger();
+    AtomicInteger pageWidth = new AtomicInteger();
+//    AtomicInteger index = new AtomicInteger();
+    List<ImagePosition> imagePositions = new ArrayList<>();
+    AtomicInteger lastPosition = new AtomicInteger(-1);
+
+
+    for (int i = 0; i < document.getNumberOfPages(); i++) {
+      PDPage page = document.getPage(i);
+//      index.set(i);
+
+       // Dive 2 is the umbral to accept the image
+      pageHeight.set(((int)page.getMediaBox().getHeight()) / 2);
+      pageWidth.set(((int) page.getMediaBox().getWidth()) / 2);
+
+      try {
+        // The images are extract and filter by size
+        List<RenderedImage> extract = getImagesFromResources(page.getResources());
+        extract = extract.stream()
+                          .filter( image -> image.getHeight() > pageHeight.get() &&
+                                            image.getWidth()  > pageWidth.get())
+                          .toList();
+
+        if(extract.isEmpty())
+          continue;
+
+        // This section allow to add the image after last phrase of last page (Before image)
+        PDFTextStripper stripper = new PDFTextStripper();
+        int pageNumber = (i == 0) ? 0 : i;
+        stripper.setStartPage(pageNumber);
+        stripper.setEndPage(pageNumber);
+        String textPage = stripper.getText(document);
+        String positionPhrase = getPositionPhrase(textPage);
+
+        imagePositions.addAll(
+            extract.stream()
+                   .map(image -> { lastPosition.set(lastPosition.get()+1);
+                                   return ImagePosition.builder()
+                                                       .image(ImagesUtils.getByteArray(image))
+                                                       .phrasePosition(positionPhrase)
+                                                       .lastPosition(imagePositions.size() + lastPosition.get())
+                                                       .build();})
+                   .toList()
+        );
+
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+
+      lastPosition.set(-1);
+    }
+
+    return imagePositions;
+  }
+
+  private String getPositionPhrase(String textPage) {
+    textPage = cleanText(textPage);
+
+    if(textPage.isEmpty())
+      return "";
+    if(textPage.length() > CHARACTER_PHRASE_POSITION)
+      return textPage.substring(textPage.length()-CHARACTER_PHRASE_POSITION);
+
+    return textPage;
+  }
+
+  private List<RenderedImage> getImagesFromResources(PDResources resources) throws IOException {
+    List<RenderedImage> images = new ArrayList<>();
+
+    for (COSName xObjectName : resources.getXObjectNames()) {
+      PDXObject xObject = resources.getXObject(xObjectName);
+
+      if (xObject instanceof PDFormXObject) {
+        images.addAll(getImagesFromResources(((PDFormXObject) xObject).getResources()));
+      } else if (xObject instanceof PDImageXObject) {
+        images.add(((PDImageXObject) xObject).getImage());
+      }
+    }
+
+    return images;
   }
 }
