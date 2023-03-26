@@ -1,9 +1,12 @@
 package com.andemar.cleanpdf.util;
 
+import com.andemar.cleanpdf.model.PdfContent;
+import com.itextpdf.io.image.ImageDataFactory;
 import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Text;
 import com.itextpdf.layout.properties.TextAlignment;
@@ -15,7 +18,8 @@ public class PdfWriteUtils {
 
   Paragraph contenido;
 
-  public void createPdf(String content) {
+  public void createPdf(PdfContent pdfContent) {
+    String content = pdfContent.getFlatContent();
     contenido = new Paragraph();
 
     // generate PDF
@@ -38,6 +42,14 @@ public class PdfWriteUtils {
       contenido.add(text);
 
       newDocument.add(contenido);
+
+      pdfContent.getImages()
+                  .forEach(imagePosition ->
+                      newDocument.add(
+                          new Image(ImageDataFactory.create(imagePosition.getImage()))
+                      )
+                  );
+
       newDocument.close();
     } catch (FileNotFoundException e) {
       throw new RuntimeException(e);

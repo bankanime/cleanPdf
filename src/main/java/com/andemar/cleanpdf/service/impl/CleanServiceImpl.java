@@ -1,5 +1,6 @@
 package com.andemar.cleanpdf.service.impl;
 
+import com.andemar.cleanpdf.model.PdfContent;
 import com.andemar.cleanpdf.service.CleanService;
 import com.andemar.cleanpdf.util.PdfReadUtils;
 import com.andemar.cleanpdf.util.PdfWriteUtils;
@@ -32,9 +33,9 @@ public class CleanServiceImpl implements CleanService {
     @Override
     public void cleanFile(MultipartFile file) {
         log.info("upload file");
-        StringBuilder content = pdfReadUtils.multipartFileToStringBuilder(file);
-        String cleanContent = pdfReadUtils.cleanText(content.toString());
-        pdfWriteUtils.createPdf(cleanContent);
+        PdfContent pdfContent = pdfReadUtils.multipartFileToStringBuilder(file);
+        pdfContent.setFlatContent(pdfReadUtils.cleanText(pdfContent.getContent().toString()));
+        pdfWriteUtils.createPdf(pdfContent);
     }
 
 

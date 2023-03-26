@@ -2,6 +2,7 @@ package com.andemar.cleanpdf.util;
 
 import com.andemar.cleanpdf.exception.CleanPdfException;
 import com.andemar.cleanpdf.model.ImagePosition;
+import com.andemar.cleanpdf.model.PdfContent;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.RenderedImage;
 import java.io.IOException;
@@ -34,27 +35,13 @@ public class PdfReadUtils {
   private static final Integer CHARACTER_PHRASE_POSITION = 50;
 
 
-  public StringBuilder multipartFileToStringBuilder(MultipartFile file) {
+  public PdfContent multipartFileToStringBuilder(MultipartFile file) {
     PDDocument document = loadPdf(file);
-    extractImagePosition(document);
-    StringBuilder content = new StringBuilder();
-    try {
-      PDFTextStripperByArea textStripper = new PDFTextStripperByArea();
-      Rectangle2D rect = new java.awt.geom.Rectangle2D.Float(40, 80, 500, 623);
-      textStripper.addRegion("region", rect);
-
-      for (int i = 0; i < document.getNumberOfPages(); i++) {
-        textStripper.extractRegions(document.getPage(i));
-        content.append(textStripper.getTextForRegion("region"));
-      }
-
-      return content;
-
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    return PdfContent.builder()
+            .content(extractContent(document))
+            .images(extractImagePosition(document))
+            .build();
   }
-
 
   public PDDocument loadPdf(MultipartFile file) {
     PDDocument pdDocument = null;
@@ -72,6 +59,24 @@ public class PdfReadUtils {
     return pdDocument;
   }
 
+  private static StringBuilder extractContent(PDDocument document) {
+    StringBuilder content = new StringBuilder();
+    try {
+      PDFTextStripperByArea textStripper = new PDFTextStripperByArea();
+      Rectangle2D rect = new Rectangle2D.Float(40, 80, 500, 623);
+      textStripper.addRegion("region", rect);
+
+      for (int i = 0; i < document.getNumberOfPages(); i++) {
+        textStripper.extractRegions(document.getPage(i));
+        content.append(textStripper.getTextForRegion("region"));
+      }
+
+      return content;
+
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
 
   public void checkPermissionPdf(PDDocument pdf) {
     AccessPermission ap = pdf.getCurrentAccessPermission();
@@ -103,14 +108,12 @@ public class PdfReadUtils {
 
     AtomicInteger pageHeight = new AtomicInteger();
     AtomicInteger pageWidth = new AtomicInteger();
-//    AtomicInteger index = new AtomicInteger();
     List<ImagePosition> imagePositions = new ArrayList<>();
     AtomicInteger lastPosition = new AtomicInteger(-1);
 
 
     for (int i = 0; i < document.getNumberOfPages(); i++) {
       PDPage page = document.getPage(i);
-//      index.set(i);
 
        // Dive 2 is the umbral to accept the image
       pageHeight.set(((int)page.getMediaBox().getHeight()) / 2);
@@ -142,7 +145,9 @@ public class PdfReadUtils {
                                                        .image(ImagesUtils.getByteArray(image))
                                                        .phrasePosition(positionPhrase)
                                                        .lastPosition(imagePositions.size() + lastPosition.get())
-                                                       .build();})
+                                                       .build();
+                                  }
+                   )
                    .toList()
         );
 
@@ -154,17 +159,6 @@ public class PdfReadUtils {
     }
 
     return imagePositions;
-  }
-
-  private String getPositionPhrase(String textPage) {
-    textPage = cleanText(textPage);
-
-    if(textPage.isEmpty())
-      return "";
-    if(textPage.length() > CHARACTER_PHRASE_POSITION)
-      return textPage.substring(textPage.length()-CHARACTER_PHRASE_POSITION);
-
-    return textPage;
   }
 
   private List<RenderedImage> getImagesFromResources(PDResources resources) throws IOException {
@@ -181,5 +175,16 @@ public class PdfReadUtils {
     }
 
     return images;
+  }
+
+  private String getPositionPhrase(String textPage) {
+    textPage = cleanText(textPage);
+
+    if(textPage.isEmpty())
+      return "";
+    if(textPage.length() > CHARACTER_PHRASE_POSITION)
+      return textPage.substring(textPage.length()-CHARACTER_PHRASE_POSITION);
+
+    return textPage;
   }
 }
