@@ -13,6 +13,7 @@ public class ImagePosition {
   private int lastPosition;
 
   public boolean hasPosition() {
-    return !phrasePosition.isEmpty();
+    return !phrasePosition.isEmpty() &&
+           !phrasePosition.matches("^[\\r\\n\\f ]*$");
   }
 }

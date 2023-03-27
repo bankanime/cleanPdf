@@ -32,7 +32,8 @@ public class PdfReadUtils {
   private static final String NEW_LINE = "\n";
   private static final String NEW_PAGE = "\f";
   private static final String SPACE = " ";
-  private static final Integer CHARACTER_PHRASE_POSITION = 50;
+  private static final Integer CHARACTER_PHRASE_POSITION = 80;
+  private static final String SPLIT_DELETE_CHARACTERS = "[?\n\r\f]";
 
 
   public PdfContent multipartFileToStringBuilder(MultipartFile file) {
@@ -63,7 +64,8 @@ public class PdfReadUtils {
     StringBuilder content = new StringBuilder();
     try {
       PDFTextStripperByArea textStripper = new PDFTextStripperByArea();
-      Rectangle2D rect = new Rectangle2D.Float(40, 80, 500, 623);
+      // Check how to set the exact x,y,w and h of rectangle. Be careful with content out of rectangle.
+      Rectangle2D rect = new Rectangle2D.Float(20, 40, 550, 823);
       textStripper.addRegion("region", rect);
 
       for (int i = 0; i < document.getNumberOfPages(); i++) {
@@ -89,17 +91,21 @@ public class PdfReadUtils {
     int iterations = 50;
     text.trim();
 
+    if(text.isEmpty())
+      return "";
+
     for (int i = 0; i < iterations; i++) {
+      text = text.replaceAll("\r\n \r\n \r\n",JUMP_LINE);
       text = text.replaceAll("\r\n \r\n ",JUMP_LINE);
       text = text.replaceAll("\r\n\r\n",JUMP_LINE);
       text = text.replaceAll("\r\r", RETURN);
       text = text.replaceAll("\n\n", NEW_LINE);
-      text = text.replaceAll("1", NEW_PAGE);
+//      text = text.replaceAll("1", NEW_PAGE);
       text = text.replaceAll("  ", SPACE);
 
     }
     text = text.replaceAll("\r\n \r\n", "\n\n");
-    text = text.replaceAll("(\\r\\n)([áéíóúÁÉÍÓÚa-zA-Z ])", "$2");
+    text = text.replaceAll("(\\r\\n)([áéííóúÁÉÍÓÚa-zA-Z ])", "$2");
     return text;
   }
 
@@ -116,8 +122,8 @@ public class PdfReadUtils {
       PDPage page = document.getPage(i);
 
        // Dive 2 is the umbral to accept the image
-      pageHeight.set(((int)page.getMediaBox().getHeight()) / 2);
-      pageWidth.set(((int) page.getMediaBox().getWidth()) / 2);
+      pageHeight.set((int) (page.getMediaBox().getHeight() / 1.5 ));
+      pageWidth.set((int)  (page.getMediaBox().getWidth() / 1.5));
 
       try {
         // The images are extract and filter by size
@@ -182,9 +188,23 @@ public class PdfReadUtils {
 
     if(textPage.isEmpty())
       return "";
-    if(textPage.length() > CHARACTER_PHRASE_POSITION)
-      return textPage.substring(textPage.length()-CHARACTER_PHRASE_POSITION);
+    if(textPage.length() > CHARACTER_PHRASE_POSITION){
+      String[] subString = textPage.substring(textPage.length()-CHARACTER_PHRASE_POSITION).split(SPLIT_DELETE_CHARACTERS);
+      return (subString.length == 1) ? subString[0] : getBigger(subString);
+//      return (subString.length == 2  && (subString[1].length() > subString[0].length())) ? subString[1] : subString[0];
+    }
 
     return textPage;
+  }
+
+  private String getBigger(String[] subString) {
+    int bigger = 0;
+
+    for (int i = 0; i < subString.length; i++) {
+      if (subString[i].length() >= subString[bigger].length())
+        bigger = i;
+    }
+
+    return subString[bigger];
   }
 }

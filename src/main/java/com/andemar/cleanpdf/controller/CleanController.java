@@ -16,9 +16,10 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/clean")
 public class CleanController {
 
-    private CleanService cleanService;
+    private final CleanService cleanService;
 
-    public CleanController(@Autowired CleanService cleanService) {
+    @Autowired
+    public CleanController(CleanService cleanService) {
         this.cleanService = cleanService;
     }
 
