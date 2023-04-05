@@ -1,13 +1,19 @@
 package com.andemar.cleanpdf.util;
 
+import static com.andemar.cleanpdf.util.CommonVariables.HEIGHT;
+import static com.andemar.cleanpdf.util.CommonVariables.WIDTH;
+
 import com.andemar.cleanpdf.exception.CleanPdfException;
+import com.andemar.cleanpdf.model.Dimensions;
 import com.andemar.cleanpdf.model.ImagePosition;
 import com.andemar.cleanpdf.model.PdfContent;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.RenderedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.cos.COSName;
@@ -35,16 +41,15 @@ public class PdfReadUtils {
   private static final Integer CHARACTER_PHRASE_POSITION = 80;
   private static final String SPLIT_DELETE_CHARACTERS = "[?\n\r\f]";
 
-
-  public PdfContent multipartFileToStringBuilder(MultipartFile file) {
+  public PdfContent multipartFileToStringBuilder(MultipartFile file, Dimensions rectangle) {
     PDDocument document = loadPdf(file);
     return PdfContent.builder()
-            .content(extractContent(document))
+            .content(extractContent(document, rectangle))
             .images(extractImagePosition(document))
             .build();
   }
 
-  public PDDocument loadPdf(MultipartFile file) {
+  public static PDDocument loadPdf(MultipartFile file) {
     PDDocument pdDocument = null;
 
     try {
@@ -60,13 +65,13 @@ public class PdfReadUtils {
     return pdDocument;
   }
 
-  private static StringBuilder extractContent(PDDocument document) {
+  private static StringBuilder extractContent(PDDocument document, Dimensions rectangle) {
     StringBuilder content = new StringBuilder();
     try {
       PDFTextStripperByArea textStripper = new PDFTextStripperByArea();
 
       for(PDPage page: document.getPages()) {
-        textStripper.addRegion("region", getRect(page));
+        textStripper.addRegion("region", getRect(page, rectangle));
         textStripper.extractRegions(page);
         content.append(textStripper.getTextForRegion("region"));
       }
@@ -78,15 +83,30 @@ public class PdfReadUtils {
     }
   }
 
-  private static Rectangle2D getRect(PDPage page) {
-    float width = page.getMediaBox().getWidth() * 0.9f;
-    float height = page.getMediaBox().getHeight() * 0.9f;
-    float x = width * 0.04f;
-    float y = height * 0.04f;
-    return new Rectangle2D.Float(x, y, width, height);
+  private static Rectangle2D getRect(PDPage page, Dimensions rectangle) {
+    if (rectangle != null && rectangle.exist()) {
+      return new Rectangle2D.Float(rectangle.getX(),
+                                   rectangle.getY(),
+                                   rectangle.getWidth(),
+                                   rectangle.getHeight());
+    } else {
+      Map<String, Float> dimensions = getDimensions(page);
+      float width = dimensions.get(WIDTH) * 0.9f;
+      float height = dimensions.get(WIDTH) * 0.9f;
+      float x = width * 0.04f;
+      float y = height * 0.04f;
+      return new Rectangle2D.Float(x, y, width, height);
+    }
   }
 
-  public void checkPermissionPdf(PDDocument pdf) {
+  public static Map<String, Float> getDimensions(PDPage page) {
+    Map<String, Float> dimensions = new HashMap<>();
+    dimensions.put(WIDTH, page.getMediaBox().getWidth());
+    dimensions.put(HEIGHT, page.getMediaBox().getHeight());
+    return dimensions;
+  }
+
+  public static void checkPermissionPdf(PDDocument pdf) {
     AccessPermission ap = pdf.getCurrentAccessPermission();
     if(!ap.canExtractContent())
       throw new CleanPdfException("You do not have permission to extract text");
