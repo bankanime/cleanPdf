@@ -12,7 +12,7 @@ import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Text;
 import com.itextpdf.layout.properties.TextAlignment;
-import java.io.FileNotFoundException;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -20,31 +20,28 @@ import org.springframework.stereotype.Component;
 @Component
 public class PdfWriteUtils {
 
-//  private final String CLEAN_PHRASE_POSITION = "[”\"\r\n]";
-  private final String CLEAN_PHRASE_POSITION = "[\r\n]";
+  private static final String CLEAN_PHRASE_POSITION = "[\r\n]";
 
-  public void createPdf(PdfContent pdfContent) {
+  public byte[] createPdf(PdfContent pdfContent) {
+    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     // generate PDF
     PdfDocument newPdf = null;
-    try {
-      newPdf = new PdfDocument(new PdfWriter("target/test.pdf"));
-      newPdf.setDefaultPageSize(PageSize.LETTER);
+    newPdf = new PdfDocument(new PdfWriter(byteArrayOutputStream));
+    newPdf.setDefaultPageSize(PageSize.LETTER);
 
-      Document newDocument = new Document(newPdf);
-      newDocument.setLeftMargin(68.04F);
-      newDocument.setRightMargin(68.04F);
+    Document newDocument = new Document(newPdf);
+    newDocument.setLeftMargin(68.04F);
+    newDocument.setRightMargin(68.04F);
 
-      for(PageContent page : getPages(pdfContent)) {
-        if(page.isImage())
-          newDocument.add(page.getImage());
-        else
-          newDocument.add(page.getText());
-      }
-
-      newDocument.close();
-    } catch (FileNotFoundException e) {
-      throw new RuntimeException(e);
+    for(PageContent page : getPages(pdfContent)) {
+      if(page.isImage())
+        newDocument.add(page.getImage());
+      else
+        newDocument.add(page.getText());
     }
+
+    newDocument.close();
+    return byteArrayOutputStream.toByteArray();
   }
 
 

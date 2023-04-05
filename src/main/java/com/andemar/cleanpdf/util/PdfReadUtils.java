@@ -64,12 +64,10 @@ public class PdfReadUtils {
     StringBuilder content = new StringBuilder();
     try {
       PDFTextStripperByArea textStripper = new PDFTextStripperByArea();
-      // Check how to set the exact x,y,w and h of rectangle. Be careful with content out of rectangle.
-      Rectangle2D rect = new Rectangle2D.Float(20, 40, 550, 823);
-      textStripper.addRegion("region", rect);
 
-      for (int i = 0; i < document.getNumberOfPages(); i++) {
-        textStripper.extractRegions(document.getPage(i));
+      for(PDPage page: document.getPages()) {
+        textStripper.addRegion("region", getRect(page));
+        textStripper.extractRegions(page);
         content.append(textStripper.getTextForRegion("region"));
       }
 
@@ -80,12 +78,19 @@ public class PdfReadUtils {
     }
   }
 
+  private static Rectangle2D getRect(PDPage page) {
+    float width = page.getMediaBox().getWidth() * 0.9f;
+    float height = page.getMediaBox().getHeight() * 0.9f;
+    float x = width * 0.04f;
+    float y = height * 0.04f;
+    return new Rectangle2D.Float(x, y, width, height);
+  }
+
   public void checkPermissionPdf(PDDocument pdf) {
     AccessPermission ap = pdf.getCurrentAccessPermission();
     if(!ap.canExtractContent())
       throw new CleanPdfException("You do not have permission to extract text");
   }
-
 
   public String cleanText(String text) {
     int iterations = 50;
@@ -191,7 +196,6 @@ public class PdfReadUtils {
     if(textPage.length() > CHARACTER_PHRASE_POSITION){
       String[] subString = textPage.substring(textPage.length()-CHARACTER_PHRASE_POSITION).split(SPLIT_DELETE_CHARACTERS);
       return (subString.length == 1) ? subString[0] : getBigger(subString);
-//      return (subString.length == 2  && (subString[1].length() > subString[0].length())) ? subString[1] : subString[0];
     }
 
     return textPage;

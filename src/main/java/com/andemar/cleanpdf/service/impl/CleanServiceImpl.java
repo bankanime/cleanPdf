@@ -31,11 +31,11 @@ public class CleanServiceImpl implements CleanService {
     }
 
     @Override
-    public void cleanFile(MultipartFile file) {
+    public byte[] cleanFile(MultipartFile file) {
         log.info("upload file");
         PdfContent pdfContent = pdfReadUtils.multipartFileToStringBuilder(file);
         pdfContent.setFlatContent(pdfReadUtils.cleanText(pdfContent.getContent().toString()));
-        pdfWriteUtils.createPdf(pdfContent);
+        return pdfWriteUtils.createPdf(pdfContent);
     }
 
 

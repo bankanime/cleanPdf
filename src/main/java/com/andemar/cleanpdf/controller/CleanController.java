@@ -3,7 +3,9 @@ package com.andemar.cleanpdf.controller;
 import com.andemar.cleanpdf.service.CleanService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,10 +26,14 @@ public class CleanController {
     }
 
     @PostMapping("/pdf")
-    public ResponseEntity<String> cleanUpload(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<byte[]> cleanUpload(@RequestParam("file") MultipartFile file) {
+        String fileName = "clean_"+file.getName()+".pdf";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData(fileName, fileName);
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+        byte[] newFile = cleanService.cleanFile(file);
 
-        cleanService.cleanFile(file);
-
-        return new ResponseEntity<>("upload", HttpStatus.ACCEPTED);
+        return new ResponseEntity<>(newFile, headers, HttpStatus.OK);
     }
 }
