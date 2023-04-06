@@ -33,17 +33,24 @@ public class PdfWriteUtils {
     newDocument.setLeftMargin(68.04F);
     newDocument.setRightMargin(68.04F);
 
-    for(PageContent page : getPages(pdfContent)) {
-      if(page.isImage())
-        newDocument.add(page.getImage());
-      else
-        newDocument.add(page.getText());
+    if(pdfContent.hasImages()) {
+      for(PageContent page : getPages(pdfContent)) {
+        if(page.isImage())
+          newDocument.add(page.getImage());
+        else
+          newDocument.add(page.getText());
+      }
+    } else {
+      newDocument.add(getParagraph(pdfContent));
     }
 
     newDocument.close();
     return byteArrayOutputStream.toByteArray();
   }
 
+  private static Paragraph getParagraph(PdfContent pdfContent) {
+    return new Paragraph(pdfContent.getFlatContent());
+  }
 
   private List<PageContent> getPages(PdfContent content) {
     List<PageContent> pages = new ArrayList<>();

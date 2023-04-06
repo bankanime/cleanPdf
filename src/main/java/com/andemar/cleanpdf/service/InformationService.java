@@ -5,5 +5,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface InformationService {
 
-  public Dimensions getDimensions(MultipartFile file, int pageNumber);
+  Dimensions getDimensions(MultipartFile file, int pageNumber);
+
+  byte[] check(MultipartFile file, int pageNumber, Dimensions rectangle);
 }

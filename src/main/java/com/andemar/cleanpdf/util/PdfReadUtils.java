@@ -49,6 +49,13 @@ public class PdfReadUtils {
             .build();
   }
 
+  public PdfContent multipartFileToStringBuilder(MultipartFile file, int pageNumber, Dimensions rectangle) {
+    PDDocument document = loadPdf(file);
+    return PdfContent.builder()
+        .content(extractContent(document, pageNumber, rectangle))
+        .build();
+  }
+
   public static PDDocument loadPdf(MultipartFile file) {
     PDDocument pdDocument = null;
 
@@ -76,6 +83,25 @@ public class PdfReadUtils {
         content.append(textStripper.getTextForRegion("region"));
       }
 
+      return content;
+
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static StringBuilder extractContent(PDDocument document, int pageNumber, Dimensions rectangle) {
+    StringBuilder content = new StringBuilder();
+    try {
+      PDFTextStripperByArea textStripper = new PDFTextStripperByArea();
+
+      if(pageNumber >= document.getNumberOfPages() || pageNumber < 0)
+        throw new IllegalArgumentException("The pageNumber don't exist");
+
+      PDPage page = document.getPage(pageNumber);
+      textStripper.addRegion("region", getRect(page, rectangle));
+      textStripper.extractRegions(page);
+      content.append(textStripper.getTextForRegion("region"));
       return content;
 
     } catch (IOException e) {

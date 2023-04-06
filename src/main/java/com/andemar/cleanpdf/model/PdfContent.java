@@ -13,4 +13,8 @@ public class PdfContent {
   private StringBuilder content;
   private String flatContent;
   private List<ImagePosition> images;
+
+  public boolean hasImages() {
+    return (images != null && !images.isEmpty());
+  }
 }
