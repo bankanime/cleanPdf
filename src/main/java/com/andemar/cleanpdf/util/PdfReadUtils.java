@@ -24,7 +24,6 @@ import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
 import org.apache.pdfbox.pdmodel.graphics.PDXObject;
 import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
-import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.PDFTextStripperByArea;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -45,7 +44,7 @@ public class PdfReadUtils {
     PDDocument document = loadPdf(file);
     return PdfContent.builder()
             .content(extractContent(document, rectangle))
-            .images(extractImagePosition(document))
+            .images(extractImagePosition(document, rectangle))
             .build();
   }
 
@@ -161,7 +160,7 @@ public class PdfReadUtils {
   }
 
 
-  public List<ImagePosition> extractImagePosition(PDDocument document) {
+  public List<ImagePosition> extractImagePosition(PDDocument document, Dimensions rectangle) {
 
     AtomicInteger pageHeight = new AtomicInteger();
     AtomicInteger pageWidth = new AtomicInteger();
@@ -171,6 +170,7 @@ public class PdfReadUtils {
 
     for (int i = 0; i < document.getNumberOfPages(); i++) {
       PDPage page = document.getPage(i);
+      PDPage pageBefore = document.getPage((i == 0) ? 0 : i-1);
 
        // Dive 2 is the umbral to accept the image
       pageHeight.set((int) (page.getMediaBox().getHeight() / 1.5 ));
@@ -188,11 +188,11 @@ public class PdfReadUtils {
           continue;
 
         // This section allow to add the image after last phrase of last page (Before image)
-        PDFTextStripper stripper = new PDFTextStripper();
+        PDFTextStripperByArea textStripper = new PDFTextStripperByArea();
         int pageNumber = (i == 0) ? 0 : i;
-        stripper.setStartPage(pageNumber);
-        stripper.setEndPage(pageNumber);
-        String textPage = stripper.getText(document);
+        textStripper.addRegion("region", getRect(pageBefore, rectangle));
+        textStripper.extractRegions(pageBefore);
+        String textPage = textStripper.getTextForRegion("region");
         String positionPhrase = getPositionPhrase(textPage);
 
         imagePositions.addAll(

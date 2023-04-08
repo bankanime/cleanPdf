@@ -1,5 +1,6 @@
 package com.andemar.cleanpdf.util;
 
+import com.andemar.cleanpdf.exception.CleanPdfException;
 import com.andemar.cleanpdf.model.ImagePosition;
 import com.andemar.cleanpdf.model.PageContent;
 import com.andemar.cleanpdf.model.PdfContent;
@@ -66,6 +67,10 @@ public class PdfWriteUtils {
        } else {
          pageText = new Paragraph();
          contentTextSplit = contentText.split(cleanPhrasePosition(image.getPhrasePosition()));
+
+         if(contentTextSplit.length <= 1)
+           throwSplitException(contentTextSplit[0], image.getPhrasePosition());
+
          contentText = contentTextSplit[1];
 
          Text text = new Text(contentTextSplit[0] + image.getPhrasePosition());
@@ -91,6 +96,11 @@ public class PdfWriteUtils {
     }
 
     return pages;
+  }
+
+  private void throwSplitException(String contentTextSplit, String phrasePosition) {
+    String textSplit = contentTextSplit.substring(contentTextSplit.length()-50);
+    throw new CleanPdfException("TextSplit: |" + textSplit + "|   ^^^^^^^^^^   " + "PhrasePosition: |" + phrasePosition + "|");
   }
 
 
