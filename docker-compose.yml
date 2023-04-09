@@ -1,0 +1,10 @@
+version: "3.9"
+
+services:
+  cleanpdf:
+    build: .
+    environment:
+      - "JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,address=*:5005,server=y,suspend=n"
+    ports:
+      - "8091:8091"
+      - "5005:5005"

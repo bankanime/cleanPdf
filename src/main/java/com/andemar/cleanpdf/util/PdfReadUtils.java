@@ -1,6 +1,7 @@
 package com.andemar.cleanpdf.util;
 
 import static com.andemar.cleanpdf.util.CommonVariables.HEIGHT;
+import static com.andemar.cleanpdf.util.CommonVariables.LINUX_OS;
 import static com.andemar.cleanpdf.util.CommonVariables.WIDTH;
 
 import com.andemar.cleanpdf.exception.CleanPdfException;
@@ -31,14 +32,17 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 @Component
 public class PdfReadUtils {
-
+  private static final String COMODIN = "&&&";
   private static final String JUMP_LINE = "\r\n";
   private static final String RETURN = "\r";
   private static final String NEW_LINE = "\n";
   private static final String NEW_PAGE = "\f";
   private static final String SPACE = " ";
+  private static final String EMPTY = "";
   private static final Integer CHARACTER_PHRASE_POSITION = 80;
-  private static final String SPLIT_DELETE_CHARACTERS = "[?\n\r\f]";
+  private static final String SPLIT_DELETE_CHARACTERS_WINDOWS = "[?\n\r\f]";
+  private static final String SPLIT_DELETE_CHARACTERS_LINUX = "[?\n]";
+
 
   public PdfContent multipartFileToStringBuilder(MultipartFile file, Dimensions rectangle) {
     PDDocument document = loadPdf(file);
@@ -144,6 +148,29 @@ public class PdfReadUtils {
     if(text.isEmpty())
       return "";
 
+    if (System.getProperty("os.name").equalsIgnoreCase("Linux")) {
+      text = cleanTextLinux(text, iterations);
+    } else if (System.getProperty("os.name").contains("Windows")){
+      text = cleanTextWindows(text, iterations);
+    }
+
+    return text;
+  }
+
+  private String cleanTextLinux(String text, int iterations) {
+    text = text.replaceAll("\n \n", COMODIN);
+    text = text.replaceAll("\n\n", COMODIN);
+    text = text.replaceAll("\n", "");
+    for (int i = 0; i < iterations; i++) {
+//      text = text.replaceAll("(\\r\\n)([áéííóúÁÉÍÓÚa-zA-Z ])", "$2");
+      text = text.replaceAll(COMODIN + " " + COMODIN, COMODIN);
+    }
+    text = text.replaceAll(COMODIN, "\n\n");
+
+    return text;
+  }
+
+  private String cleanTextWindows(String text, int iterations) {
     for (int i = 0; i < iterations; i++) {
       text = text.replaceAll("\r\n \r\n \r\n",JUMP_LINE);
       text = text.replaceAll("\r\n \r\n ",JUMP_LINE);
@@ -152,7 +179,6 @@ public class PdfReadUtils {
       text = text.replaceAll("\n\n", NEW_LINE);
 //      text = text.replaceAll("1", NEW_PAGE);
       text = text.replaceAll("  ", SPACE);
-
     }
     text = text.replaceAll("\r\n \r\n", "\n\n");
     text = text.replaceAll("(\\r\\n)([áéííóúÁÉÍÓÚa-zA-Z ])", "$2");
@@ -189,7 +215,6 @@ public class PdfReadUtils {
 
         // This section allow to add the image after last phrase of last page (Before image)
         PDFTextStripperByArea textStripper = new PDFTextStripperByArea();
-        int pageNumber = (i == 0) ? 0 : i;
         textStripper.addRegion("region", getRect(pageBefore, rectangle));
         textStripper.extractRegions(pageBefore);
         String textPage = textStripper.getTextForRegion("region");
@@ -240,7 +265,8 @@ public class PdfReadUtils {
     if(textPage.isEmpty())
       return "";
     if(textPage.length() > CHARACTER_PHRASE_POSITION){
-      String[] subString = textPage.substring(textPage.length()-CHARACTER_PHRASE_POSITION).split(SPLIT_DELETE_CHARACTERS);
+      String split = (System.getProperty("os.name").equalsIgnoreCase(LINUX_OS)) ? SPLIT_DELETE_CHARACTERS_LINUX : SPLIT_DELETE_CHARACTERS_WINDOWS;
+      String[] subString = textPage.substring(textPage.length()-CHARACTER_PHRASE_POSITION).split(split);
       return (subString.length == 1) ? subString[0] : getBigger(subString);
     }
 
